@@ -2,8 +2,7 @@ Srcs := $(wildcard *.c)
 Outs := $(patsubst %.c, %.o, $(Srcs))
 BIN:=CloudiskServer
 CC := gcc
-CFLAGS = -w -g
-
+CFLAGS = -lpthread -Wall -g -lssl -lcrypto -lmysqlclient
 ALL: $(Outs) 
 	$(CC) -o $(BIN) $^ $(CFLAGS)
 

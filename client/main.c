@@ -1,13 +1,14 @@
 #include "client.h"
 #include <func.h>
 
+extern char path[128] = {0};
+
 int main()
 {
     int clientfd = tcpConnect("127.0.0.1", 8080);
 
-    //用户登录操作
     userLogin(clientfd);
-
+    
     char buf[128] = {0};
     //4. 使用select进行监听
     fd_set rdset;
@@ -34,6 +35,10 @@ int main()
             sendn(clientfd, &t, 4 + 4 + t.len);
             if(t.type == CMD_TYPE_PUTS) {
                 putsCommand(clientfd, &t);
+            }
+            else if(t.type == CMD_TYPE_GETS)
+            {
+                getsCommand(clientfd,&t);
             }
         } else if(FD_ISSET(clientfd, &rdset)) {
             recv(clientfd, buf, sizeof(buf), 0);

@@ -67,4 +67,3 @@ int threadpoolStop(threadpool_t * pthreadpool)
     }
     return 0;
 }
-

@@ -7,6 +7,7 @@ typedef enum {
     CMD_TYPE_PWD=1,
     CMD_TYPE_LS,
     CMD_TYPE_CD,
+    CMD_TYPE_RM,
     CMD_TYPE_MKDIR,
     CMD_TYPE_RMDIR,
     CMD_TYPE_PUTS,
@@ -19,7 +20,13 @@ typedef enum {
     TASK_LOGIN_SECTION2,
     TASK_LOGIN_SECTION2_RESP_OK,
     TASK_LOGIN_SECTION2_RESP_ERROR,
-
+    
+    TASK_REGISTER_SECTION1 = 200,
+    TASK_REGISTER_SECTION1_RESP_OK,
+    TASK_REGISTER_SECTION1_RESP_ERROR,
+    TASK_REGISTER_SECTION2,
+    TASK_REGISTER_SECTION2_RESP_OK,
+    TASK_REGISTER_SECTION2_RESP_ERROR
 }CmdType;
 
 
@@ -35,6 +42,7 @@ int recvn(int sockfd, void * buff, int len);
 int sendn(int sockfd, const void * buff, int len);
 
 int userLogin(int sockfd);
+int userRegister(int sockfd);
 
 int parseCommand(const char * input, int len, train_t * pt);
 
@@ -42,4 +50,8 @@ int parseCommand(const char * input, int len, train_t * pt);
 int getCommandType(const char * str);
 //执行上传文件操作
 void putsCommand(int sockfd, train_t * pt);
+//执行下载文件操作
+void getsCommand(int clientfd,train_t * t);
 
+
+void pwdCommand(int clientfd, train_t *t);

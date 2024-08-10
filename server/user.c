@@ -53,7 +53,7 @@ void loginCheck2(user_info_t * user, const char * encrypted)
         //登录成功
         user->status = STATUS_LOGIN;//更新用户登录成功的状态
         t.type = TASK_LOGIN_SECTION2_RESP_OK;
-        t.len = strlen("/server/$ ");// 暂定将 /server/ 作为pwd传递给client 
+        t.len = strlen("/server/$ "); 
         strcpy(t.buff, "/server/$ ");
         ret = sendn(user->sockfd, &t, 8 + t.len);
         printf("Login success.\n");
@@ -66,4 +66,3 @@ void loginCheck2(user_info_t * user, const char * encrypted)
     printf("check2 send %d bytes.\n", ret);
     return;
 }
-

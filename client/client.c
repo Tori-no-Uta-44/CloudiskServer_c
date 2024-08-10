@@ -31,8 +31,11 @@ int tcpConnect(const char * ip, unsigned short port)
     return clientfd;
 }
 
+
+
 static int userLogin1(int sockfd, train_t *t);
 static int userLogin2(int sockfd, train_t *t);
+
 
 int userLogin(int sockfd)
 {
@@ -44,75 +47,92 @@ int userLogin(int sockfd)
     return 0;
 }
 
-static int userLogin1(int sockfd, train_t *pt)
+
+static int userLogin1(int sockfd, train_t* pt)//clientfd，pt指针是传入传出参数
 {
-    /* printf("userLogin1.\n"); */
     train_t t;
     memset(&t, 0, sizeof(t));
-    while(1) {
-        printf(USER_NAME);
-        char user[20]= {0};
-        int ret = read(STDIN_FILENO, user, sizeof(user));
-        user[ret - 1] = '\0';
+    
+    while (1) {
+        printf(USER_NAME);//please input a valid user name:\n
+        
+        char user[20] = { 0 };//初始化user缓冲区
+        int ret = read(STDIN_FILENO, user, sizeof(user));//把输入的用户名读到user缓冲区
+        user[ret - 1] = '\0';//读取标准输入时将/去掉
+        
+        //打包发送用户名信息
         t.len = strlen(user);
         t.type = TASK_LOGIN_SECTION1;
         strncpy(t.buff, user, t.len);
+        
         ret = sendn(sockfd, &t, 8 + t.len);
-        /* printf("login1 send %d bytes.\n", ret); */
+        
 
-        //接收信息
+        //接收服务器消息告知用户名是否合法
         memset(&t, 0, sizeof(t));
         ret = recvn(sockfd, &t.len, 4);
         /* printf("length: %d\n", t.len); */
         ret = recvn(sockfd, &t.type, 4);
-        if(t.type == TASK_LOGIN_SECTION1_RESP_ERROR) {
+        if (t.type == TASK_LOGIN_SECTION1_RESP_ERROR) {
             //无效用户名, 重新输入
             printf("user name not exist.\n");
             continue;
         }
-        //用户名正确，读取setting
-        ret = recvn(sockfd, t.buff, t.len);
+        //读取salt
+        ret = recvn(sockfd, t.buff, t.len);//salt由服务器发送
+        printf("saltmsg:%s\n",t.buff);
+        
         break;
     }
-    memcpy(pt, &t, sizeof(t));
+    
+    memcpy(pt, &t, sizeof(t));//将t中获取到的salt值存储到pt中
     return 0;
 }
 
-static int userLogin2(int sockfd, train_t * pt)
+
+
+static int userLogin2(int sockfd, train_t* pt)//根据salt和密码发送加密密文给服务器
 {
-    /* printf("userLogin2.\n"); */
     int ret;
     train_t t;
     memset(&t, 0, sizeof(t));
-    while(1) {
-        char * passwd = getpass(PASSWORD);
-        /* printf("password: %s\n", passwd); */
-        char * encrytped = crypt(passwd, pt->buff);
-        /* printf("encrytped: %s\n", encrytped); */
-        t.len = strlen(encrytped);
-        t.type = TASK_LOGIN_SECTION2;
-        strncpy(t.buff, encrytped, t.len);
-        ret = sendn(sockfd, &t, 8 + t.len);
-        /* printf("userLogin2 send %d bytes.\n", ret); */
+    
+    while (1) {
+        char* passwd = getpass(PASSWORD);
+        char* encrytped = crypt(passwd, pt->buff);//将pt中的salt值和用户密码一起生成加密密文
+        printf("encrytped:%s\n",encrytped);
 
+        //将加密密文打包发送给服务器
+        t.len = strlen(encrytped);
+        t.type = TASK_LOGIN_SECTION2;//发送密文类型
+        strncpy(t.buff, encrytped, t.len);
+        
+        ret = sendn(sockfd, &t, 8 + t.len);
+
+        
+        
+        //接收服务端响应信息是否登录成功
         memset(&t, 0, sizeof(t));
         ret = recvn(sockfd, &t.len, 4);
-        /* printf("2 length: %d\n", t.len); */
         ret = recvn(sockfd, &t.type, 4);
-        if(t.type == TASK_LOGIN_SECTION2_RESP_ERROR) {
+        
+        if (t.type == TASK_LOGIN_SECTION2_RESP_ERROR) {
             //密码不正确
             printf("sorry, password is not correct.\n");
             continue;
-        } else {
-            ret = recvn(sockfd, t.buff, t.len);
+        }
+        else if(t.type == TASK_LOGIN_SECTION2_RESP_OK){
+            //ret = recvn(sockfd, t.buff, t.len);
+            
             printf("Login Success.\n");
             printf("please input a command.\n");
-            fprintf(stderr, "%s", t.buff);
             break;
-        } 
+        }
     }
     return 0;
 }
+
+
 
 //其作用：确定接收len字节的数据
 int recvn(int sockfd, void * buff, int len)
@@ -180,6 +200,8 @@ int getCommandType(const char * str)
         return CMD_TYPE_LS;
     else if(!strcmp(str, "cd"))
         return CMD_TYPE_CD;
+    else if(!strcmp(str, "rm"))
+        return CMD_TYPE_RM;
     else if(!strcmp(str, "mkdir"))
         return CMD_TYPE_MKDIR;
     else if(!strcmp(str,"rmdir"))
@@ -192,37 +214,3 @@ int getCommandType(const char * str)
         return CMD_TYPE_NOTCMD;
 }
 
-void putsCommand(int sockfd, train_t * pt)
-{
-    char filename[20] = {0};
-    strcpy(filename, pt->buff);
-
-    //打开文件
-    int fd = open(filename, O_RDWR);
-    if(fd < 0) {
-        perror("open"); return;
-    }
-    //获取文件大小
-    struct stat st;
-    memset(&st, 0, sizeof(st));
-    fstat(fd, &st);
-    printf("file length: %ld\n", st.st_size);
-    //发送文件大小
-    sendn(sockfd, &st.st_size, sizeof(st.st_size));
-    off_t cur = 0;
-    char buff[1000] = {0};
-    int ret = 0;
-    //发送内容
-    while(cur < st.st_size) {
-        memset(buff, 0, sizeof(buff));
-        ret = read(fd, buff, sizeof(buff));
-        if(ret == 0) {
-            break;
-        }
-        ret = sendn(sockfd, buff, ret);
-        cur +=  ret;
-    }
-    //发送完成
-    printf("file send over.\n");
-    close(fd);
-}

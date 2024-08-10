@@ -27,6 +27,8 @@
 #include <pthread.h>
 #include <sys/uio.h>
 #include <sys/sendfile.h>
+#include <mysql/mysql.h>
+#include <stdarg.h>
 
 #define SIZE(a) (sizeof(a)/sizeof(a[0]))
 
@@ -50,13 +52,20 @@ typedef void (*sighandler_t)(int);
     }}
 
 typedef enum {
+    Directory =1 ,
+    File
+} file_t;
+typedef enum {
     CMD_TYPE_PWD=1,
     CMD_TYPE_LS,
     CMD_TYPE_CD,
+    CMD_TYPE_RM,
     CMD_TYPE_MKDIR,
     CMD_TYPE_RMDIR,
     CMD_TYPE_PUTS,
     CMD_TYPE_GETS,
+    CMD_TYPE_RECV,
+    CMD_TYPE_SEND,
     CMD_TYPE_NOTCMD,  //不是命令
 
     TASK_LOGIN_SECTION1 = 100,
@@ -65,6 +74,14 @@ typedef enum {
     TASK_LOGIN_SECTION2,
     TASK_LOGIN_SECTION2_RESP_OK,
     TASK_LOGIN_SECTION2_RESP_ERROR,
+
+    TASK_REGISTER_SECTION1 = 200,
+    TASK_REGISTER_SECTION1_RESP_OK,
+    TASK_REGISTER_SECTION1_RESP_ERROR,
+    TASK_REGISTER_SECTION2,
+    TASK_REGISTER_SECTION2_RESP_OK,
+    TASK_REGISTER_SECTION2_RESP_ERROR
+
 }CmdType;
 
 
@@ -74,6 +91,7 @@ typedef struct
     CmdType type;
     char buff[1000];//记录内容本身
 }train_t;
+
 
 typedef struct task_s{
     int peerfd;//与client进行通信的套接字
@@ -121,22 +139,29 @@ int transferFile(int sockfd);
 int sendn(int sockfd, const void * buff, int len);
 int recvn(int sockfd, void * buff, int len);
 
-//处理客户端发过来的消息
+//处理客户端发过来的消息,读写事件分离
 void handleMessage(int sockfd, int epfd, task_queue_t * que);
+void handle_WriteMessage(int sockfd,int epfd ,task_queue_t *que);
 //执行任务的总的函数
 void doTask(task_t * task);
 //每一个具体命令的执行
 void cdCommand(task_t * task);
 void lsCommand(task_t * task);
+void rmCommand(task_t * task);
 void pwdCommand(task_t * task);
 void mkdirCommand(task_t * task);
 void rmdirCommand(task_t * task);
 void notCommand(task_t * task);
 void putsCommand(task_t * task);
 void getsCommand(task_t * task);
+void recvCommand(task_t * task);
+void sendCommand(task_t * task);
 
 //用户登录的操作
 void userLoginCheck1(task_t * task);
 void userLoginCheck2(task_t * task);
+
+void userRegisterCheck1(task_t* task);
+void userRegisterCheck2(task_t* task);
 
 #endif
